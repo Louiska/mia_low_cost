@@ -1,4 +1,5 @@
-from coding_task_1 import get_model,TaskDataset, MembershipDataset
+from dataset import TaskDataset, MembershipDataset
+from model import get_model
 from visualize import show_img
 import torch
 from torch.utils.data import DataLoader
