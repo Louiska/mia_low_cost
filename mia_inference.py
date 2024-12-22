@@ -80,14 +80,7 @@ def main(trainset_path, targetset_path, targetmodel_name, shadowmodels_name = []
     trainset.transform = transforms
     targetset.transform = transforms
     targetset.membership = [-1 if x is None else x for x in targetset.membership]
-    indices = [i for i, x in enumerate(trainset.membership) if x == 1]
-    trainset = Subset(trainset, indices) #TODO ensure that 50% is member, 50% is not member
-    print(len(trainset))
-    #subset1, ids1= create_subset(trainset, int(len(trainset)/2))
-    #subset2, ids2= create_subset(trainset, int(len(trainset)/2))
-    #train_shadow_model(get_model("target"), targetset, trainset, "out/models/tmp.pt")
-    #train_shadow_model(get_model(""), trainset, targetset, "out/models/shadow_full_v3")
-    #shadow_models = [get_model("shadow").eval(), get_model("shadow2").eval()]
+    shadow_models = [get_model("shadow").eval(), get_model("shadow2").eval()]
     shadow_models = [get_model("shadow_full_v3_best_epochmetric").eval()]
     target_model = get_model("target").eval() # lol 3 models in RAM
     mia(targetset, shadow_models, target_model, member_subset=trainset)
