@@ -40,7 +40,7 @@ def calc_ratio(target_model, target, label, pr_target):
     output = target_model(target)
     return (softmax(output)[0, label]/pr_target).item()
 
-def mia(targetset, shadow_models, target_model, Z=10, alpha=0.3, member_subset= []):    
+def mia(targetset, shadow_models, target_model, Z=1000, alpha=0.3):    
     print("Starting MIA")
     ids = {}
     print(f"Z:{Z}, a:{alpha}")
@@ -68,8 +68,16 @@ def mia(targetset, shadow_models, target_model, Z=10, alpha=0.3, member_subset= 
 
     df = pd.DataFrame(ids.items(), columns = ["ids", "score"])
     df.to_csv("test.csv", index=None)
-
-def main(trainset_path, targetset_path, targetmodel_name, shadowmodels_name = []):
+#TODO interdependenz z & x samples? Hängen sie irgendwie voneinander ab?
+#TODO Ist das "is member" Attribut irgendwie relevant?
+#trainsets, overlap und co
+#TODO Z verdoppeln, alpha anpassen?
+#TODO Test how well it would perform on the training set (TPR@FPR=0.05)
+#Usually Z 5000, alpha 0.3
+#TODO show accuracy and loss of members/non members
+#TODO Log configs and responses
+#TODO train multiple models
+def main(trainset_path, targetset_path, targetmodel_name, shadow_models_name = [], train_models = False):
     random.seed(0)
     transforms = v2.Compose([
         v2.RandomHorizontalFlip(p=0.5),
@@ -80,11 +88,17 @@ def main(trainset_path, targetset_path, targetmodel_name, shadowmodels_name = []
     trainset.transform = transforms
     targetset.transform = transforms
     targetset.membership = [-1 if x is None else x for x in targetset.membership]
-    shadow_models = [get_model("shadow").eval(), get_model("shadow2").eval()]
-    shadow_models = [get_model("shadow_full_v3_best_epochmetric").eval()]
-    target_model = get_model("target").eval() # lol 3 models in RAM
-    mia(targetset, shadow_models, target_model, member_subset=trainset)
+    
+    if train_models:
+        for name in shadow_models_name:
+            train_shadow_model(get_model(""),trainset, targetset, name, num_epochs= 20, bs= 64, lr = 0.004)
+    shadow_models = []
+    for name in shadow_models_name: 
+        shadow_models.append(get_model(name).eval())
+    target_model = get_model("target").eval() # lol so many models in RAM
+    mia(targetset, shadow_models, target_model)
+
 
 trainset_path = "out/data/01/pub.pt"
 targetset_path = "out/data/01/priv_out.pt"
-main(trainset_path, targetset_path, "target", ["shadow", "shadow2"])
+main(trainset_path, targetset_path, "target", ["shadow", "shadow2"], train_models = True)
