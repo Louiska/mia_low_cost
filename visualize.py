@@ -1,4 +1,4 @@
-from coding_task_1 import MembershipDataset
+
 import torch
 import matplotlib.pyplot as plt
 
