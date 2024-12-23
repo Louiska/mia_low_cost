@@ -5,7 +5,7 @@ from torch.nn import CrossEntropyLoss, Softmax
 from torch import optim
 from dataset_helper import create_subset
 import csv
-def train_shadow_model(model, trainset, valset, save_path = "", num_epochs = 20, bs = 64, lr = 0.004):
+def train_shadow_model(model, trainset, valset, save_path = "", num_epochs = 6, bs = 64, lr = 0.0004):
     print("Training model for: " + save_path)
     trainloader = DataLoader(trainset, batch_size = bs, num_workers = 16)
     valloader = DataLoader(valset, batch_size = bs, num_workers = 16)
@@ -17,14 +17,15 @@ def train_shadow_model(model, trainset, valset, save_path = "", num_epochs = 20,
         lr = lr, 
     )
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience = 3, factor = 0.4, verbose=True,
+        optimizer, patience = 2, factor = 0.6, verbose=True,
     )
     best_epoch_metric = 1000
+    lowest_loss = 10
     best_epoch = 0
     for epoch in range(num_epochs):
         print(f"Run epoch: {epoch}/{num_epochs}")
         for phase in ["train", "val"]:
-            epoch_metric = run_epoch(model, 
+            loss, epoch_metric = run_epoch(model,
                         phase,
                         dataloader[phase],
                         criterion,
@@ -32,14 +33,16 @@ def train_shadow_model(model, trainset, valset, save_path = "", num_epochs = 20,
                         epoch)
             if phase == "train":
                 train_epoch_metric = epoch_metric
+                train_loss = loss
             if phase == "val":
                 scheduler.step(epoch_metric)
-                if epoch_metric<best_epoch_metric:
+                if loss<lowest_loss:
                     best_epoch_metric = epoch_metric
                     best_epoch = epoch
+                    lowest_loss = loss
                     counter_epoch_metric = 0
                     print(f"New best metric")
-                    #torch.save(model.state_dict(), save_path + "_tmp.pt")
+                    torch.save(model.state_dict(), save_path + "_best.pt")
                     print("Tmp-Saved Model")
                 else:
                     counter_epoch_metric+=1
@@ -53,8 +56,11 @@ def train_shadow_model(model, trainset, valset, save_path = "", num_epochs = 20,
             "lr": lr,
             "bs": bs,
             "last_train_metric": train_epoch_metric,
+            "last_train_loss": train_loss,
             "last val_metric": epoch_metric,
+            "last_val_loss": loss,
             "best_epoch_metric": best_epoch_metric,
+            "lowest_loss": lowest_loss,
             "best_epoch": best_epoch,
             "TPR@FPR=0.05":0,
             "AUC":0.5}
@@ -86,9 +92,9 @@ def run_epoch(model, phase, dataloader, criterion, optimizer, epoch):
             if idx % 25 == 0:
                 print(loss.item())
                 print(f"Correct predictions: {total_correct}/{(idx+1)*imgs.size(0)}")
-            
-    print(f"Acc: {total_correct/(dataloader.batch_size*idx)}")
+    acc = total_correct/(dataloader.batch_size*idx)
+    print(f"Acc: {acc}")
     print(f"Loss: {total_loss/idx}")
-    return total_loss/idx
+    return total_loss/idx, acc
         
 
