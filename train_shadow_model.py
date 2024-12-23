@@ -58,10 +58,13 @@ def train_shadow_model(model, trainset, valset, save_path = "", num_epochs = 20,
             "best_epoch": best_epoch,
             "TPR@FPR=0.05":0,
             "AUC":0.5}
-    with open("train_log.csv", "w") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=data[0].keys())
-        writer.writeheader()
-        writer.writerows(data)
+    with open("train_log.csv", "a") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=data.keys())
+
+        csvfile.seek(0, 2)  
+        if csvfile.tell() == 0:
+            writer.writeheader()  
+        writer.writerow(data)
     
 
 def run_epoch(model, phase, dataloader, criterion, optimizer, epoch):
