@@ -3,8 +3,8 @@ from model import get_model
 from dataset_helper import create_subset
 from train_shadow_model import train_shadow_model
 import torch
-from torch.utils.data import Subset
-from torch.nn import Softmax
+from torch.utils.data import Subset, Dataset
+from torch.nn import Softmax, Module
 import pandas as pd
 import random
 from tqdm import tqdm
@@ -19,7 +19,7 @@ if False:
     )
 
 
-def calc_pr_z(models, z, label):
+def calc_pr_z(models, z, label: int) -> float:
     acc_sum = 0
     softmax = Softmax(dim=1)
 
@@ -29,18 +29,25 @@ def calc_pr_z(models, z, label):
     return acc_sum / len(models)
 
 
-def calc_pr_x(models, x, label, alpha):
+def calc_pr_x(models, x, label: int, alpha: float) -> float:
     pr_x_out = calc_pr_z(models, x, label)
     return 0.5 * ((1 + alpha) * pr_x_out + (1 - alpha))
 
 
-def calc_ratio(target_model, target, label, pr_target):
+def calc_ratio(target_model, target, label: int, pr_target: float) -> float:
     softmax = Softmax(dim=1)
     output = target_model(target)
     return (softmax(output)[0, label] / pr_target).item()
 
 
-def mia(targetset, shadow_models, target_model, save_name, Z=10000, alpha=1):
+def mia(
+    targetset: Dataset,
+    shadow_models: list[Module],
+    target_model: Module,
+    save_name: str,
+    Z: int = 10000,
+    alpha: float = 1,
+):
     print("Starting MIA")
     ids = {}
     print(f"Z:{Z}, a:{alpha}")
@@ -71,11 +78,11 @@ def mia(targetset, shadow_models, target_model, save_name, Z=10000, alpha=1):
 
 
 def main(
-    trainset_path,
-    targetset_path,
-    shadow_models_name,
-    num_shadow_models,
-    train_models=False,
+    trainset_path: str,
+    targetset_path: str,
+    shadow_models_name: str,
+    num_shadow_models: int,
+    train_models: bool = False,
 ):
     random.seed(0)
     transforms = v2.Compose(

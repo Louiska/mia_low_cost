@@ -1,29 +1,33 @@
 import torch
 from tqdm import tqdm
-from torch.utils.data import DataLoader
-from torch.nn import CrossEntropyLoss
-from torch import optim
+from torch.utils.data import DataLoader, Dataset
+from torch.nn import CrossEntropyLoss, Module
+from torch.optim import AdamW, lr_scheduler
 import csv
 
 
 def train_shadow_model(
-    model, trainset, valset, save_path="", num_epochs=6, bs=64, lr=0.0004
+    model: Module,
+    trainset: Dataset,
+    valset: Dataset,
+    save_path: str = "",
+    num_epochs: int = 6,
+    bs: int = 64,
+    lr: float = 0.0004,
 ):
     print("Training model for: " + save_path)
     trainloader = DataLoader(trainset, batch_size=bs, num_workers=16)
     valloader = DataLoader(valset, batch_size=bs, num_workers=16)
     dataloader = {"train": trainloader, "val": valloader}
     criterion = CrossEntropyLoss()
-    # softmax = Softmax(dim=1)
-    optimizer = optim.AdamW(
+    optimizer = AdamW(
         model.parameters(),
         lr=lr,
     )
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    scheduler = lr_scheduler.ReduceLROnPlateau(
         optimizer,
         patience=2,
         factor=0.6,
-        verbose=True,
     )
     best_epoch_metric = 1000
     lowest_loss = 10
@@ -71,6 +75,10 @@ def train_shadow_model(
         "TPR@FPR=0.05": 0,
         "AUC": 0.5,
     }
+    log_data(data)
+
+
+def log_data(data: dict):
     with open("train_log.csv", "a") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=data.keys())
 
@@ -80,7 +88,9 @@ def train_shadow_model(
         writer.writerow(data)
 
 
-def run_epoch(model, phase, dataloader, criterion, optimizer, epoch):
+def run_epoch(
+    model: Module, phase: str, dataloader, criterion, optimizer, epoch: int
+) -> tuple[float, float]:
     total_correct, total_loss = 0, 0
     for idx, (_, imgs, labels, _) in enumerate(tqdm(dataloader)):
         with torch.set_grad_enabled(phase == "train"):

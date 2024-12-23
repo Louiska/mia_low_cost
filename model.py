@@ -3,7 +3,7 @@ import torch
 
 
 # load the data from a file
-def get_model(name=""):
+def get_model(name: str = ""):
     model = resnet18(pretrained=True)
     model.fc = torch.nn.Linear(512, 44)
     if name != "":
