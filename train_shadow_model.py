@@ -15,6 +15,17 @@ def train_shadow_model(
     bs: int = 64,
     lr: float = 0.0004,
 ):
+    """Trains a model, logs its hyperparameters and metrics in a csv called train_log.csv
+
+    Args:
+        model (Module): Model to be trained
+        trainset (Dataset): Trainset
+        valset (Dataset): Validationset
+        save_path (str, optional): Path for saving model. Defaults to "".
+        num_epochs (int, optional): Total number of epochs to train. Defaults to 6.
+        bs (int, optional): Batch size. Defaults to 64.
+        lr (float, optional): Learning rate. Defaults to 0.0004.
+    """
     print("Training model for: " + save_path)
     trainloader = DataLoader(trainset, batch_size=bs, num_workers=16)
     valloader = DataLoader(valset, batch_size=bs, num_workers=16)
@@ -79,6 +90,11 @@ def train_shadow_model(
 
 
 def log_data(data: dict):
+    """Saves the given data to train_log.csv
+
+    Args:
+        data (dict): Contains structured data
+    """
     with open("train_log.csv", "a") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=data.keys())
 
@@ -91,6 +107,19 @@ def log_data(data: dict):
 def run_epoch(
     model: Module, phase: str, dataloader, criterion, optimizer, epoch: int
 ) -> tuple[float, float]:
+    """Runs an epoch, either for training or validation
+
+    Args:
+        model (Module): Model for training
+        phase (str): Train or validation
+        dataloader (_type_): Dataloader_
+        criterion (_type_): Loss function
+        optimizer (_type_): Optimizer
+        epoch (int): Current epoch
+
+    Returns:
+        tuple[float, float]: Average loss per sample, overall accuracy for epoch
+    """
     total_correct, total_loss = 0, 0
     for idx, (_, imgs, labels, _) in enumerate(tqdm(dataloader)):
         with torch.set_grad_enabled(phase == "train"):

@@ -1,3 +1,6 @@
+""" Trains and executes MIA on a given training-/targetset
+"""
+
 from dataset import MembershipDataset
 from model import get_model
 from dataset_helper import create_subset
@@ -19,7 +22,7 @@ if False:
     )
 
 
-def calc_pr_z(models, z, label: int) -> float:
+def calc_pr_z(models: list[Module], z, label: int) -> float:
     acc_sum = 0
     softmax = Softmax(dim=1)
 
@@ -29,7 +32,7 @@ def calc_pr_z(models, z, label: int) -> float:
     return acc_sum / len(models)
 
 
-def calc_pr_x(models, x, label: int, alpha: float) -> float:
+def calc_pr_x(models: list[Module], x, label: int, alpha: float) -> float:
     pr_x_out = calc_pr_z(models, x, label)
     return 0.5 * ((1 + alpha) * pr_x_out + (1 - alpha))
 
@@ -46,8 +49,19 @@ def mia(
     target_model: Module,
     save_name: str,
     Z: int = 10000,
-    alpha: float = 1,
+    alpha: float = 0.3,
 ):
+    """
+    Calculate MIA in offline mode as shown by Zarifzadeh et al. in https://doi.org/10.48550/arXiv.2312.03262
+    
+    Args:
+        targetset (Dataset): Contains target samples to be classified if part of the trainingset of the target model or not
+        shadow_models (list[Module]): Aka. reference models, trained with a dataset of (ideally) the same distribution as the target model
+        target_model (Module): The model we try to extract the training data from
+        save_name (str): Where to save the resulting csv
+        Z (int, optional): How many reference samples will be used. Defaults to 10000.
+        alpha (float, optional): To approximate the effect of the inner model. Defaults to 0.3.
+    """
     print("Starting MIA")
     ids = {}
     print(f"Z:{Z}, a:{alpha}")
@@ -84,6 +98,15 @@ def main(
     num_shadow_models: int,
     train_models: bool = False,
 ):
+    """Trains shadow models and forwards them to the MIA 
+
+    Args:
+        trainset_path (str): Path to training set
+        targetset_path (str): Path to set of to classify data
+        shadow_models_name (str): Name for saving/loading shadow models
+        num_shadow_models (int): Aka. k, how many reference models should be trained
+        train_models (bool, optional): If true, trains shadow models, otherwise loads existing models. Defaults to False.
+    """
     random.seed(0)
     transforms = v2.Compose(
         [
@@ -97,7 +120,7 @@ def main(
     targetset.transform = transforms
     targetset.membership = [-1 if x is None else x for x in targetset.membership]
     shadow_models_save_path = f"out/models/{shadow_models_name}"
-    trainset_size = 0.5
+    trainset_size = 1
     if train_models:
         for i in range(num_shadow_models):
             indices_member, indices_non_member = [], []
@@ -120,13 +143,13 @@ def main(
                 sub_trainset,
                 targetset,
                 f"{shadow_models_save_path}_{i}",
-                num_epochs=5,
+                num_epochs=10,
                 bs=64,
                 lr=0.00004,
             )
     shadow_models = []
     for i in range(num_shadow_models):
-        shadow_models.append(get_model(f"{shadow_models_name}_{i}").eval())
+        shadow_models.append(get_model(f"{shadow_models_name}_{i}_best").eval())
     target_model = get_model("target").eval()  # lol so many models in RAM
     mia(targetset, shadow_models, target_model, save_name=shadow_models_name)
 
@@ -136,7 +159,7 @@ targetset_path = "out/data/01/priv_out.pt"
 main(
     trainset_path,
     targetset_path,
-    shadow_models_name="model_v9",
-    num_shadow_models=4,
+    shadow_models_name="model_v11",
+    num_shadow_models=1,
     train_models=False,
 )
