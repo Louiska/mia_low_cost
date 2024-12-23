@@ -1,9 +1,9 @@
-
 from torch.utils.data import Subset
 import random
 
+
 def analyse_dataset(dataset):
-    labels = {i:dataset.labels.count(i) for i in dataset.labels}
+    labels = {i: dataset.labels.count(i) for i in dataset.labels}
     print(f"Length: {len(dataset)}")
     print("Label: n")
     print(labels)
