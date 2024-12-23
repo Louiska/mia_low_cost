@@ -40,7 +40,7 @@ def calc_ratio(target_model, target, label, pr_target):
     output = target_model(target)
     return (softmax(output)[0, label]/pr_target).item()
 
-def mia(targetset, shadow_models, target_model, Z=1000, alpha=0.3):    
+def mia(targetset, shadow_models, target_model, save_name,  Z=10000, alpha=1):    
     print("Starting MIA")
     ids = {}
     print(f"Z:{Z}, a:{alpha}")
@@ -49,7 +49,7 @@ def mia(targetset, shadow_models, target_model, Z=1000, alpha=0.3):
     print("Calculating z-Ratios")
     for id_z, z, z_label, _ in tqdm(mia_subset):
         z = z.unsqueeze(0) 
-        pr_z = calc_pr_z(shadow_models, z, z_label)
+        pr_z = calc_pr_x(shadow_models, z, z_label, alpha=alpha) # correct to use z_out models?
         ratio_z = calc_ratio(target_model, z, z_label, pr_z)
         z_ratios[id_z] = ratio_z
     print("Done")
@@ -58,26 +58,16 @@ def mia(targetset, shadow_models, target_model, Z=1000, alpha=0.3):
         x = x.unsqueeze(0) # add batch layer
         pr_x = calc_pr_x(shadow_models, x, label, alpha = alpha)
         ratio_x = calc_ratio(target_model, x, label, pr_x)
-        if ratio_x/ratio_z>1:
-            counter+=1
+        for key, ratio_z in z_ratios.items():
+            if ratio_x/ratio_z>1:
+                counter+=1
         mia_score = counter/Z
         ids[id_x] = mia_score
-    with open("member_pred.pkl","wb") as f:
-        pickle.dump(ids, f)
-    print(ids)
 
     df = pd.DataFrame(ids.items(), columns = ["ids", "score"])
-    df.to_csv("test.csv", index=None)
-#TODO interdependenz z & x samples? Hängen sie irgendwie voneinander ab?
-#TODO Ist das "is member" Attribut irgendwie relevant?
-#trainsets, overlap und co
-#TODO Z verdoppeln, alpha anpassen?
-#TODO Test how well it would perform on the training set (TPR@FPR=0.05)
-#Usually Z 5000, alpha 0.3
-#TODO show accuracy and loss of members/non members
-#TODO Log configs and responses
-#TODO train multiple models
-def main(trainset_path, targetset_path, targetmodel_name, shadow_models_name = [], train_models = False):
+    df.to_csv(f"{save_name}.csv", index=None)
+
+def main(trainset_path, targetset_path,shadow_models_name, num_shadow_models, train_models = False):
     random.seed(0)
     transforms = v2.Compose([
         v2.RandomHorizontalFlip(p=0.5),
@@ -88,17 +78,29 @@ def main(trainset_path, targetset_path, targetmodel_name, shadow_models_name = [
     trainset.transform = transforms
     targetset.transform = transforms
     targetset.membership = [-1 if x is None else x for x in targetset.membership]
-    
+    shadow_models_save_path = f"out/models/{shadow_models_name}"
+    trainset_size = 0.5
     if train_models:
-        for name in shadow_models_name:
-            train_shadow_model(get_model(""),trainset, targetset, name, num_epochs= 20, bs= 64, lr = 0.004)
+        for i in range(num_shadow_models):
+            indices_member, indices_non_member = [], []
+            for k, is_member in enumerate(trainset.membership):
+                if is_member:
+                    indices_member.append(k)
+                else:
+                    indices_non_member.append(k)
+            ids_member = random.sample(indices_member, int(len(indices_member)*trainset_size))
+            ids_non_member = random.sample(indices_non_member, int(len(indices_non_member)*trainset_size))
+            ids = ids_member + ids_non_member
+            sub_trainset = Subset(trainset, ids)
+            print(f"Training shadow model: {i}/{num_shadow_models}")
+            train_shadow_model(get_model(""),sub_trainset, targetset, f"{shadow_models_save_path}_{i}", num_epochs= 5, bs= 64, lr = 0.00004)
     shadow_models = []
-    for name in shadow_models_name: 
-        shadow_models.append(get_model(name).eval())
+    for i in range(num_shadow_models): 
+        shadow_models.append(get_model(f"{shadow_models_name}_{i}").eval())
     target_model = get_model("target").eval() # lol so many models in RAM
-    mia(targetset, shadow_models, target_model)
+    mia(targetset, shadow_models, target_model, save_name = shadow_models_name)
 
 
 trainset_path = "out/data/01/pub.pt"
 targetset_path = "out/data/01/priv_out.pt"
-main(trainset_path, targetset_path, "target", ["shadow", "shadow2"], train_models = True)
+main(trainset_path, targetset_path, shadow_models_name = "model_v9",num_shadow_models = 4, train_models = False)
