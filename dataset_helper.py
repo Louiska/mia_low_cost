@@ -57,8 +57,8 @@ def split_dataset(
 
 
 def get_dataset(trainset_path, targetset_path, train_transforms, target_transforms):
-    trainset: MembershipDataset = torch.load(trainset_path)
-    targetset: MembershipDataset = torch.load(targetset_path)
+    trainset: MembershipDataset = torch.load(trainset_path, weights_only=False)
+    targetset: MembershipDataset = torch.load(targetset_path, weights_only=False)
     trainset.transform = train_transforms
     targetset.transform = target_transforms
     targetset.membership = [-1 if x is None else x for x in targetset.membership]
