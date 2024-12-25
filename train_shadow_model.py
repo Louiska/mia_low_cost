@@ -37,15 +37,16 @@ def train_shadow_model(
     )
     scheduler = lr_scheduler.ReduceLROnPlateau(
         optimizer,
-        patience=2,
-        factor=0.6,
+        patience=2,  # if no improvement for patience epochs
+        factor=0.6,  # factor of how much its reduced
+        threshold=0.03,  # the relative change to the ath
     )
-    best_epoch_metric = 1000
-    lowest_loss = 10
+    best_epoch_metric = 0
+    lowest_loss = 1000
     best_epoch = 0
     for epoch in range(num_epochs):
         print(f"Run epoch: {epoch}/{num_epochs}")
-        for phase in ["train", "val"]:
+        for phase in ["val"]:
             loss, epoch_metric = run_epoch(
                 model, phase, dataloader[phase], criterion, optimizer, epoch
             )
@@ -55,7 +56,9 @@ def train_shadow_model(
             if phase == "val":
                 scheduler.step(epoch_metric)
                 if loss < lowest_loss:
-                    best_epoch_metric = epoch_metric
+                    best_epoch_metric = (
+                        epoch_metric  # FIXME best epoch doesnt have to be current epoch
+                    )
                     best_epoch = epoch
                     lowest_loss = loss
                     counter_epoch_metric = 0

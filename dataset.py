@@ -2,7 +2,6 @@ import torch
 from torch.utils.data import Dataset
 from typing import Tuple
 
-
 class TaskDataset(Dataset):
     def __init__(self, transform=None):
 
@@ -18,7 +17,7 @@ class TaskDataset(Dataset):
         if not self.transform is None:
             img = self.transform(img)
         label = self.labels[index]
-
+        
         return id_, img, label
 
     def __len__(self):
