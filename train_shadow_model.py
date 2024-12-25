@@ -46,7 +46,7 @@ def train_shadow_model(
     best_epoch = 0
     for epoch in range(num_epochs):
         print(f"Run epoch: {epoch}/{num_epochs}")
-        for phase in ["val"]:
+        for phase in ["train", "val"]:
             loss, epoch_metric = run_epoch(
                 model, phase, dataloader[phase], criterion, optimizer, epoch
             )

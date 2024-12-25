@@ -49,7 +49,7 @@ def main(
         else:
             shadow_models_sets = [trainset]
         for i, shadow_model_set in enumerate(shadow_models_sets):
-            print(f"Training shadow model: {i}/{num_shadow_models}")
+            print(f"Training shadow model: {i+1}/{num_shadow_models}")
             train_shadow_model(
                 get_model(model_architecture),
                 shadow_model_set,
@@ -101,8 +101,7 @@ def get_transforms():
         ]
     )
     target_transforms = v2.Compose(
-        [v2.Resize((224,224)),
-        v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]
+        [v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]
     )
     return train_transforms, target_transforms
 
