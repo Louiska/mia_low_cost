@@ -24,7 +24,7 @@ def calc_pr_x_given_theta(models: list[Module], x, label: int) -> float:
     return acc_sum / len(models)
 
 
-def calc_pr_out(models: list[Module], x, label: int, alpha: float) -> float:
+def calc_pr_x_offline(models: list[Module], x, label: int, alpha: float) -> float:#
     pr_x_out = calc_pr_x_given_theta(models, x, label)
     return 0.5 * ((1 + alpha) * pr_x_out + (1 - alpha))
 
@@ -63,16 +63,19 @@ def mia(
     z_ratios = {}
     print("Calculating z-Ratios")
     for id_z, z, z_label, _ in tqdm(Z_set):
-        # show_img(z)
         z = z.unsqueeze(0)
-        pr_z = calc_pr_x_given_theta(shadow_models, z, z_label)
+        if len(shadow_models) == 1: # For single model, approximate pr_in
+            pr_z = calc_pr_x_offline(shadow_models, z, z_label, alpha = alpha)
+        else:
+            pr_z = calc_pr_x_given_theta(shadow_models, z, z_label) 
+            # Equals pr_z as pr_z contains in and out models given that the shadow_models are in and out models
         ratio_z = calc_ratio(target_model, z, z_label, pr_z)
         z_ratios[id_z] = ratio_z
     print("Done")
     for id_x, x, label, _ in tqdm(targetset):
         counter = 0
         x = x.unsqueeze(0)
-        pr_x = calc_pr_out(shadow_models, x, label, alpha=alpha)
+        pr_x = calc_pr_x_offline(shadow_models, x, label, alpha=alpha) 
         ratio_x = calc_ratio(target_model, x, label, pr_x)
         for key, ratio_z in z_ratios.items():
             if ratio_x / ratio_z > 1:
@@ -185,8 +188,8 @@ def main(
         )  # Create trainset of trainset_size that contains the same ratio of member/non members
         else: 
             shadow_models_sets = trainset
-        print(f"Training shadow model: {i}/{num_shadow_models}")
         for i, sub_trainset in enumerate(shadow_models_sets):
+            print(f"Training shadow model: {i}/{num_shadow_models}")
             train_shadow_model(
                 get_model(""),
                 sub_trainset,
@@ -208,7 +211,7 @@ def main(
     trainset.transform = target_transforms
     Z_set = Subset(trainset, non_member_indices) # No z in Z is part of the targets training data
 
-    mia(
+    mia(    
         targetset,
         shadow_models,
         target_model,
@@ -228,5 +231,5 @@ main(
     targetset_path,
     shadow_model_name,
     num_shadow_models=2,
-    train_models=True,
+    train_models=False,
 )
