@@ -31,7 +31,7 @@ def split_dataset(
     shadow_models_sets = []
     if replacement:
         print(
-            f"Splitting dataset in {k} of proportional {trainset_size} size. With replacement!"
+            f"Splitting dataset in {k} of relative size {trainset_size}. With replacement!"
         )
         for _ in range(k):  # if multiple shadowmodels are trained
             ids_member = random.sample(
@@ -41,7 +41,7 @@ def split_dataset(
                 non_member_indices, int(len(non_member_indices) * trainset_size)
             )
             ids = ids_member + ids_non_member
-            shadow_models_sets += Subset(trainset, ids)
+            shadow_models_sets += [Subset(trainset, ids)]
 
     else:  # TODO allow more than 2 without replacement
         print("Currently only supports split by 2 without replacement")
@@ -63,3 +63,15 @@ def get_dataset(trainset_path, targetset_path, train_transforms, target_transfor
     targetset.transform = target_transforms
     targetset.membership = [-1 if x is None else x for x in targetset.membership]
     return trainset, targetset
+
+def get_label_distribution(dataset: Dataset):
+    """Prints the label and its number of occurances of a given dataset
+
+    Args:
+        dataset (Dataset): The given dataset
+    """
+    labels = [label for _, _, label, _ in dataset]
+    labels_tensor = torch.tensor(labels)
+    unique_labels, counts = labels_tensor.unique(return_counts=True)
+    label_distribution = {label.item(): count.item() for label, count in zip(unique_labels, counts)}
+    print(label_distribution)
