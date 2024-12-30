@@ -10,10 +10,10 @@ def train_shadow_model(
     model: Module,
     trainset: Dataset,
     valset: Dataset,
-    save_path: str = "",
-    num_epochs: int = 6,
-    bs: int = 64,
-    lr: float = 0.0004,
+    save_path: str,
+    num_epochs: int,
+    bs: int,
+    lr: float,
 ):
     """Trains a model, logs its hyperparameters and metrics in a csv called train_log.csv
 
@@ -21,10 +21,10 @@ def train_shadow_model(
         model (Module): Model to be trained
         trainset (Dataset): Trainset
         valset (Dataset): Validationset
-        save_path (str, optional): Path for saving model. Defaults to "".
-        num_epochs (int, optional): Total number of epochs to train. Defaults to 6.
-        bs (int, optional): Batch size. Defaults to 64.
-        lr (float, optional): Learning rate. Defaults to 0.0004.
+        save_path (str): Path for saving model.
+        num_epochs (int): Total number of epochs to train.
+        bs (int): Batch size.
+        lr (float): Learning rate.
     """
     print("Training model for: " + save_path)
     trainloader = DataLoader(trainset, batch_size=bs, num_workers=16)
@@ -35,11 +35,13 @@ def train_shadow_model(
         model.parameters(),
         lr=lr,
     )
+
+    th = 0.02
     scheduler = lr_scheduler.ReduceLROnPlateau(
         optimizer,
         patience=2,  # if no improvement for patience epochs
-        factor=0.6,  # factor of how much its reduced
-        threshold=0.03,  # the relative change to the ath
+        factor=0.5,  # factor of how much its reduced
+        threshold=th,  # the relative change to the ath
     )
     best_epoch_metric = 0
     lowest_loss = 1000
@@ -55,7 +57,7 @@ def train_shadow_model(
                 train_loss = loss
             if phase == "val":
                 scheduler.step(epoch_metric)
-                if loss < lowest_loss:
+                if loss < lowest_loss * (1 - th):  # threshold of scheduler
                     best_epoch_metric = (
                         epoch_metric  # FIXME best epoch doesnt have to be current epoch
                     )
@@ -68,14 +70,14 @@ def train_shadow_model(
                 else:
                     counter_epoch_metric += 1
                     print(
-                        f"No improvement for {counter_epoch_metric} epochs at lr {scheduler.get_last_lr()}"
+                        f"No {th} improvement relative to {lowest_loss} for {counter_epoch_metric} epochs at lr {scheduler.get_last_lr()}"
                     )
 
     torch.save(model.state_dict(), save_path + ".pt")
     print("Done, saved at " + save_path)
     data = {
         "name": save_path,
-        "dataset_size": 0.5,
+        "dataset_size": 1,
         "num_epochs": num_epochs,
         "lr": lr,
         "bs": bs,
